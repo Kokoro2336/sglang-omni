@@ -1292,10 +1292,11 @@ def test_qwen3_tts_preprocessing_does_not_mutate_global_rng(
         speech_tokenizer = fake_speech_tokenizer()
         speaker_encoder_sample_rate = 24000
 
-        def extract_speaker_embedding(self, *, audio, sr):
-            assert audio.shape == (32,)
+        def extract_speaker_embeddings(self, *, audios, sr):
+            assert len(audios) == 1
+            assert audios[0].shape == (32,)
             assert sr == 24000
-            return torch.ones(4)
+            return [torch.ones(4)]
 
         def build_voice_clone_inputs(self, **kwargs):
             del kwargs
@@ -1366,10 +1367,11 @@ def test_qwen3_tts_uploaded_voice_clone_prompt_uses_shared_cache(
         speech_tokenizer = fake_speech_tokenizer(encode)
         speaker_encoder_sample_rate = 24000
 
-        def extract_speaker_embedding(self, *, audio, sr):
-            assert audio.shape == (32,)
+        def extract_speaker_embeddings(self, *, audios, sr):
+            assert len(audios) == 1
+            assert audios[0].shape == (32,)
             assert sr == 24000
-            return torch.ones(4)
+            return [torch.ones(4)]
 
         def build_voice_clone_inputs(self, **kwargs):
             assert kwargs["voice_clone_prompt"]["icl_mode"] == [True]
@@ -1483,10 +1485,11 @@ def test_qwen3_tts_adhoc_voice_clone_prompt_uses_reference_service(
         speech_tokenizer = fake_speech_tokenizer(encode)
         speaker_encoder_sample_rate = 24000
 
-        def extract_speaker_embedding(self, *, audio, sr):
-            assert audio.shape == (32,)
+        def extract_speaker_embeddings(self, *, audios, sr):
+            assert len(audios) == 1
+            assert audios[0].shape == (32,)
             assert sr == 24000
-            return torch.ones(4)
+            return [torch.ones(4)]
 
         def build_voice_clone_inputs(self, **kwargs):
             assert kwargs["voice_clone_prompt"]["icl_mode"] in ([True], [False])
@@ -1651,8 +1654,8 @@ def test_qwen3_tts_preprocess_payload_batches_reference_codes_across_requests(
         speech_tokenizer = fake_speech_tokenizer()
         speaker_encoder_sample_rate = 24000
 
-        def extract_speaker_embedding(self, *, audio, sr):
-            return torch.ones(4)
+        def extract_speaker_embeddings(self, *, audios, sr):
+            return [torch.ones(4) for _ in audios]
 
         def build_prompt_constants(self):
             return placeholder_prompt_constants()
@@ -1742,10 +1745,11 @@ def test_qwen3_tts_reference_code_overlaps_speaker_embedding() -> None:
         speech_tokenizer = fake_speech_tokenizer(encode)
         speaker_encoder_sample_rate = 24000
 
-        def extract_speaker_embedding(self, *, audio, sr):
+        def extract_speaker_embeddings(self, *, audios, sr):
+            assert len(audios) == 1
             assert tokenizer_started.wait(timeout=1.0)
             speaker_started.set()
-            return torch.ones(4)
+            return [torch.ones(4)]
 
     hook = qwen3_request_builders.Qwen3TTSAdhocReferenceHook(
         model=FakeModel(),
@@ -1780,9 +1784,9 @@ def test_qwen3_tts_x_vector_reference_runs_only_the_speaker_encoder() -> None:
         speech_tokenizer = fake_speech_tokenizer(encode)
         speaker_encoder_sample_rate = 24000
 
-        def extract_speaker_embedding(self, *, audio, sr):
-            speaker_inputs.append((len(audio), sr))
-            return torch.ones(4)
+        def extract_speaker_embeddings(self, *, audios, sr):
+            speaker_inputs.extend((len(audio), sr) for audio in audios)
+            return [torch.ones(4) for _ in audios]
 
     hook = qwen3_request_builders.Qwen3TTSAdhocReferenceHook(
         model=FakeModel(),
@@ -1998,10 +2002,10 @@ def test_qwen3_tts_uploaded_voice_x_vector_cache_omits_ref_code(
         speech_tokenizer = fake_speech_tokenizer(encode)
         speaker_encoder_sample_rate = 24000
 
-        def extract_speaker_embedding(self, *, audio, sr):
+        def extract_speaker_embeddings(self, *, audios, sr):
             nonlocal calls
-            calls += 1
-            return torch.ones(4)
+            calls += len(audios)
+            return [torch.ones(4) for _ in audios]
 
         def build_voice_clone_inputs(self, **kwargs):
             assert kwargs["voice_clone_prompt"]["icl_mode"] == [False]

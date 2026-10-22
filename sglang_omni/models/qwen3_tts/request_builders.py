@@ -1188,20 +1188,11 @@ class Qwen3TTSAdhocReferenceHook(
     def encode_one(
         self, item: Qwen3TTSAdhocReferenceInput
     ) -> tuple[VoicePrompt, str | None]:
-        outcome = self.encode_batch([item])[0]
-        if isinstance(outcome, Exception):
-            raise outcome
-        else:
-            pass
-        return outcome
+        return self.encode_batch([item])[0]
 
     def encode_batch(
         self, items: list[Qwen3TTSAdhocReferenceInput]
-    ) -> list[tuple[VoicePrompt, str | None] | Exception]:
-        if not items:
-            return []
-        else:
-            pass
+    ) -> list[tuple[VoicePrompt, str | None]]:
         for item in items:
             if not item.x_vector_only_mode and not item.ref_text:
                 raise ValueError(
@@ -1216,10 +1207,6 @@ class Qwen3TTSAdhocReferenceHook(
                 normalized = self.wrapper._normalize_audio_inputs(
                     [item.ref_audio]
                 )  # noqa: leading-underscore  # upstream spelling, or the public name is already taken
-                if len(normalized) != 1:
-                    raise ValueError("Qwen3-TTS expects exactly one reference audio")
-                else:
-                    pass
                 normalized_items.append(normalized[0])
 
             ref_code_futures: list[concurrent.futures.Future[torch.Tensor] | None] = []
@@ -1234,100 +1221,39 @@ class Qwen3TTSAdhocReferenceHook(
                     )
 
             speaker_sample_rate = self.model.speaker_encoder_sample_rate
-            speaker_waveforms: list[npt.NDArray[np.generic] | Exception] = []
+            speaker_waveforms: list[npt.NDArray[np.generic]] = []
             for waveform, sample_rate in normalized_items:
-                try:
-                    if sample_rate != speaker_sample_rate:
-                        waveform = librosa.resample(
-                            y=np.asarray(waveform, dtype=np.float32),
-                            orig_sr=int(sample_rate),
-                            target_sr=speaker_sample_rate,
-                        )
-                    else:
-                        pass
-                    speaker_waveforms.append(np.asarray(waveform))
-                except Exception as exc:
-                    speaker_waveforms.append(exc)
-
-            speaker_embeddings: list[torch.Tensor | Exception] | None = None
-            batch_waveforms = [
-                waveform
-                for waveform in speaker_waveforms
-                if not isinstance(waveform, Exception)
-            ]
-            if len(batch_waveforms) == len(speaker_waveforms):
-                try:
-                    batch_embeddings = self.model.extract_speaker_embeddings(
-                        audios=batch_waveforms,
-                        sr=speaker_sample_rate,
+                if sample_rate != speaker_sample_rate:
+                    waveform = librosa.resample(
+                        y=np.asarray(waveform, dtype=np.float32),
+                        orig_sr=int(sample_rate),
+                        target_sr=speaker_sample_rate,
                     )
-                    if len(batch_embeddings) != len(items):
-                        raise RuntimeError(
-                            "Qwen3-TTS speaker encoder returned "
-                            f"{len(batch_embeddings)} embeddings for "
-                            f"{len(items)} references"
-                        )
-                    else:
-                        pass
-                    speaker_embeddings = list(batch_embeddings)
-                except Exception:
-                    logger.exception(
-                        "Qwen3-TTS batched speaker encode failed; retrying per item"
-                    )
-            else:
-                pass
+                else:
+                    pass
+                speaker_waveforms.append(np.asarray(waveform))
 
-            if speaker_embeddings is None:
-                speaker_embeddings = []
-                for waveform in speaker_waveforms:
-                    if isinstance(waveform, Exception):
-                        speaker_embeddings.append(waveform)
-                        continue
-                    else:
-                        pass
-                    try:
-                        speaker_embeddings.append(
-                            self.model.extract_speaker_embedding(
-                                audio=waveform,
-                                sr=speaker_sample_rate,
-                            )
-                        )
-                    except Exception as exc:
-                        speaker_embeddings.append(exc)
-            else:
-                pass
+            speaker_embeddings = self.model.extract_speaker_embeddings(
+                audios=speaker_waveforms,
+                sr=speaker_sample_rate,
+            )
 
-            ref_codes: list[torch.Tensor | Exception | None] = []
+            ref_codes: list[torch.Tensor | None] = []
             for future in ref_code_futures:
                 if future is None:
                     ref_codes.append(None)
-                    continue
                 else:
-                    pass
-                try:
                     ref_codes.append(
                         record_ref_code_consumer_stream(future.result(timeout=130.0))
                     )
-                except Exception as exc:
-                    ref_codes.append(exc)
 
-        outcomes: list[tuple[VoicePrompt, str | None] | Exception] = []
+        outcomes: list[tuple[VoicePrompt, str | None]] = []
         for item, ref_code, speaker_embedding in zip(
             items,
             ref_codes,
             speaker_embeddings,
             strict=True,
         ):
-            if isinstance(speaker_embedding, Exception):
-                outcomes.append(speaker_embedding)
-                continue
-            else:
-                pass
-            if isinstance(ref_code, Exception):
-                outcomes.append(ref_code)
-                continue
-            else:
-                pass
             voice_clone_prompt: VoicePrompt = {
                 "ref_code": [ref_code],
                 "ref_spk_embedding": [speaker_embedding],

@@ -273,15 +273,11 @@ class Qwen3TTSSpeakerEncoderCudaGraphRunner:
 
     def embed_batch(self, waveforms: list[np.ndarray]) -> list[torch.Tensor]:
         """Speaker embeddings in input order, batching only equal-length waveforms."""
-        if not waveforms:
-            return []
-        else:
-            pass
         groups: dict[int, list[tuple[int, np.ndarray]]] = {}
         for index, waveform in enumerate(waveforms):
             groups.setdefault(len(waveform), []).append((index, waveform))
 
-        embeddings: list[torch.Tensor | None] = [None] * len(waveforms)
+        embeddings: dict[int, torch.Tensor] = {}
         param = next(self.encoder.parameters())
         for group in groups.values():
             if len(group) == 1:
@@ -298,19 +294,7 @@ class Qwen3TTSSpeakerEncoderCudaGraphRunner:
             group_embeddings = self.encoder(
                 mels.transpose(1, 2).to(device=param.device, dtype=param.dtype)
             )
-            if group_embeddings.shape[0] != len(group):
-                raise RuntimeError(
-                    "Qwen3-TTS speaker encoder returned "
-                    f"{group_embeddings.shape[0]} embeddings for "
-                    f"{len(group)} references"
-                )
-            else:
-                pass
             for (index, _), embedding in zip(group, group_embeddings, strict=True):
                 embeddings[index] = embedding
 
-        if any(embedding is None for embedding in embeddings):
-            raise RuntimeError("Qwen3-TTS speaker encoder dropped a reference")
-        else:
-            pass
-        return [embedding for embedding in embeddings if embedding is not None]
+        return [embeddings[index] for index in range(len(waveforms))]
