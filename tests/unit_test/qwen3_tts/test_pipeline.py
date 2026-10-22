@@ -1610,7 +1610,12 @@ def test_qwen3_tts_preprocess_payload_batches_reference_codes_across_requests(
     cache.clear()
     qwen3_request_builders.clear_qwen3_tts_preprocessing_context()
     batch_sizes: list[int] = []
-    both_normalizing = threading.Barrier(2)
+    speaker_batch_sizes: list[int] = []
+    monkeypatch.setattr(
+        qwen3_request_builders,
+        "QWEN3_TTS_REFERENCE_MAX_BATCH_WAIT_MS",
+        500.0,
+    )
 
     class PatientRefCodeBatcher(qwen3_request_builders.Qwen3TTSRefCodeBatcher):
         def __init__(self, speech_tokenizer, **kwargs):
@@ -1631,7 +1636,6 @@ def test_qwen3_tts_preprocess_payload_batches_reference_codes_across_requests(
 
     class FakeWrapper:
         def _normalize_audio_inputs(self, ref_audio):
-            both_normalizing.wait(timeout=5.0)
             return [(np.zeros(32, dtype=np.float32), 24000)]
 
         def _tokenize_texts(self, texts):
@@ -1655,6 +1659,8 @@ def test_qwen3_tts_preprocess_payload_batches_reference_codes_across_requests(
         speaker_encoder_sample_rate = 24000
 
         def extract_speaker_embeddings(self, *, audios, sr):
+            speaker_batch_sizes.append(len(audios))
+            assert sr == self.speaker_encoder_sample_rate
             return [torch.ones(4) for _ in audios]
 
         def build_prompt_constants(self):
@@ -1725,6 +1731,7 @@ def test_qwen3_tts_preprocess_payload_batches_reference_codes_across_requests(
 
     assert prepared_count == 2
     assert batch_sizes == [2]
+    assert speaker_batch_sizes == [2]
 
 
 def test_qwen3_tts_reference_code_overlaps_speaker_embedding() -> None:
