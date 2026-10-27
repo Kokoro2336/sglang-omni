@@ -67,9 +67,7 @@ def build_thinker_request(
     thinker_sampling = (params.get("stage_sampling") or {}).get("thinker") or {}
     temperature = thinker_sampling.get("temperature", params.get("temperature"))
     if temperature is not None and float(temperature) != 0.0:
-        logger.warning(
-            f"Ignoring text temperature={temperature}; using temperature=0."
-        )
+        logger.warning(f"Ignoring text temperature={temperature}; using temperature=0.")
     else:
         pass
     state = NemotronVoiceChatState.from_dict(payload.data)
