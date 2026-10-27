@@ -16,9 +16,7 @@ from sglang_omni.model_runner.prefill_inputs import (
 from sglang_omni.models.nemotron_voicechat.request_builders import (
     NemotronVoiceChatRequestData,
 )
-from sglang_omni.scheduling.sglang_backend.output_processor import (
-    SGLangOutputProcessor,
-)
+from sglang_omni.scheduling.sglang_backend.output_processor import SGLangOutputProcessor
 from sglang_omni.scheduling.types import SchedulerRequest
 
 
@@ -67,9 +65,7 @@ class NemotronVoiceChatModelRunner(ModelRunner[NemotronVoiceChatRequestData]):
             pass
         return acoustic_frames
 
-    def build_prefill_rows(
-        self, requests: list[SchedulerRequest]
-    ) -> torch.Tensor:
+    def build_prefill_rows(self, requests: list[SchedulerRequest]) -> torch.Tensor:
         channel_token_ids: list[list[int]] = []
         acoustic_positions: list[int] = []
         acoustic_rows: list[torch.Tensor] = []
@@ -85,9 +81,8 @@ class NemotronVoiceChatModelRunner(ModelRunner[NemotronVoiceChatRequestData]):
                 pass
             prompt_token_ids = [int(token_id) for token_id in req.origin_input_ids]
             prompt_length = len(prompt_token_ids)
-            prefix_length = len(req.prefix_indices)
-            extend_length = int(req.extend_range.length)
-            extend_end = prefix_length + extend_length
+            prefix_length = int(req.prefix_len)
+            extend_end = int(req.extend_end)
             generated_length = len(req.output_ids)
             logical_length = prompt_length + generated_length
             if extend_end > logical_length:
@@ -114,9 +109,7 @@ class NemotronVoiceChatModelRunner(ModelRunner[NemotronVoiceChatRequestData]):
                         [prompt_token_ids[position], pad_token_id, pad_token_id]
                     )
                 elif position == prompt_length - 1:
-                    channel_token_ids.append(
-                        [pad_token_id, pad_token_id, pad_token_id]
-                    )
+                    channel_token_ids.append([pad_token_id, pad_token_id, pad_token_id])
                     acoustic_positions.append(len(channel_token_ids) - 1)
                     acoustic_rows.append(acoustic_frames[0])
                 else:
@@ -144,9 +137,7 @@ class NemotronVoiceChatModelRunner(ModelRunner[NemotronVoiceChatRequestData]):
                 dtype=torch.long,
                 device=channel_embeddings.device,
             )
-            channel_embeddings[acoustic_indices, 0] = torch.stack(
-                acoustic_rows, dim=0
-            )
+            channel_embeddings[acoustic_indices, 0] = torch.stack(acoustic_rows, dim=0)
         else:
             pass
 

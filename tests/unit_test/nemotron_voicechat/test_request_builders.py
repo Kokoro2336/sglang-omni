@@ -2,10 +2,14 @@
 """Frame-count contract between the thinker and talker requests."""
 
 import logging
+from unittest.mock import Mock
 
 import pytest
 import torch
 
+from sglang_omni.models.nemotron_voicechat.model_runner import (
+    NemotronVoiceChatModelRunner,
+)
 from sglang_omni.models.nemotron_voicechat.payload_types import NemotronVoiceChatState
 from sglang_omni.models.nemotron_voicechat.request_builders import (
     apply_thinker_result,
@@ -15,6 +19,7 @@ from sglang_omni.models.nemotron_voicechat.request_builders import (
 )
 from sglang_omni.proto import StagePayload
 from sglang_omni.proto.request import OmniRequest
+from sglang_omni.scheduling.types import SchedulerRequest
 
 PROMPT_FRAMES = 37
 
@@ -59,6 +64,27 @@ def test_thinker_prefill_carries_prompt_then_one_pad_position() -> None:
     assert data.acoustic_frames.shape == (5, 4)
     assert data.stage_payload is not None
     assert "acoustic_frames_bytes" not in data.stage_payload.data
+
+
+def test_thinker_runner_uses_current_request_prefill_span() -> None:
+    """The Thinker prefill follows the scheduling span exposed by SGLang Req."""
+    data = build_thinker_request(
+        make_payload(4), vocab_size=8, prompt_token_ids=[1, 2], pad_token_id=3
+    )
+    data.req.prefix_len = 0
+    data.req.extend_end = len(data.req.origin_input_ids)
+    embedding = torch.nn.Embedding(8, 4)
+    model = Mock(
+        fusion_buffer=torch.empty(1, 4),
+        fusion=Mock(user_weight=1.0, text_weight=1.0, function_weight=2.0),
+    )
+    model.llm.get_input_embeddings.return_value = embedding
+    runner = object.__new__(NemotronVoiceChatModelRunner)
+    runner.model = model
+
+    rows = runner.build_prefill_rows([SchedulerRequest("r", data=data)])
+
+    assert rows.shape == (3, 4)
 
 
 def test_thinker_is_greedy_and_warns_on_ignored_temperature(
