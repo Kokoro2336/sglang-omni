@@ -60,7 +60,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.1.9" />
-    <meta name="docbuild:last-update" content="Oct 24, 2026"/>
+    <meta name="docbuild:last-update" content="Oct 27, 2026"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -268,15 +268,13 @@
 <li class="toctree-l1"><a class="reference internal" href="main.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="apiserver_design.html">API Server Design</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="full_duplex_interactive_model.html">Full Duplex Interactive Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="config.html">Config</a></li>
 <li class="toctree-l1"><a class="reference internal" href="adding_parameters.html">Adding a Parameter</a></li>
 <li class="toctree-l1"><a class="reference internal" href="communication.html">Communication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reference_encode_service.html">Reference Encode Service</a></li>
 <li class="toctree-l1"><a class="reference internal" href="profiler.html">Request-level profiler</a></li>
 <li class="toctree-l1"><a class="reference internal" href="qwen3_asr_concurrency_profile.html">Qwen3-ASR High-Concurrency Benchmark and Bottleneck Profile</a></li>
-<li class="toctree-l1"><a class="reference internal" href="full_duplex_bench.html">Full-Duplex-Bench runbook</a></li>
-<li class="toctree-l1"><a class="reference internal" href="full_duplex_metrics.html">Full-Duplex-Bench v1.0 unified metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="full_duplex_guide.html">Full-Duplex Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tts_bench.html">TTS benchmark runbook</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tts_model_integration.html">TTS Model Integration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="asr_bench.html">ASR benchmark runbook</a></li>
@@ -682,9 +680,11 @@ inside that cache and are read through <code class="docutils literal notranslate
 that upstream no longer builds for its own models is a surface to re-check at
 every bump: its base-class contract moves with the one upstream does build.</p>
 <p><strong>The vendor layer.</strong> <code class="docutils literal notranslate"><span class="pre">sglang_omni/vendor/sglang/layers.py</span></code> patches
-<code class="docutils literal notranslate"><span class="pre">RMSNorm.forward_cuda</span></code> and <code class="docutils literal notranslate"><span class="pre">models.py</span></code> patches <code class="docutils literal notranslate"><span class="pre">apply_qk_norm</span></code>; the module
-docstrings state what each patch does, and <code class="docutils literal notranslate"><span class="pre">models.py</span></code> the condition for
-removing it. Check that the wrapped upstream body still has the shape the
+<code class="docutils literal notranslate"><span class="pre">RMSNorm.forward_cuda</span></code>, <code class="docutils literal notranslate"><span class="pre">models.py</span></code> patches <code class="docutils literal notranslate"><span class="pre">apply_qk_norm</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">flashattention_backend.py</span></code> patches <code class="docutils literal notranslate"><span class="pre">FlashAttentionBackend.__init__</span></code> for
+DSpark drafts, installed by the bootstrap only when a DSpark draft is set;
+the module docstrings state what each patch does, and <code class="docutils literal notranslate"><span class="pre">models.py</span></code> and
+<code class="docutils literal notranslate"><span class="pre">flashattention_backend.py</span></code> the condition for removing it. Check that the wrapped upstream body still has the shape the
 patch assumes (a dispatch rewrite upstream can route around a patched method
 without an error) and that <code class="docutils literal notranslate"><span class="pre">tests/unit_test/vendor/</span></code> still pins it.</p>
 <p><strong><code class="docutils literal notranslate"><span class="pre">ServerArgs</span></code> mutation.</strong> <code class="docutils literal notranslate"><span class="pre">build_sglang_server_args</span></code> constructs the record
@@ -980,7 +980,7 @@ By SGLang-Omni Team
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Oct 24, 2026.
+  Last updated on Oct 27, 2026.
   <br/>
 </p>
   </div>
