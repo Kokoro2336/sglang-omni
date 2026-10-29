@@ -17,6 +17,7 @@ from sglang_omni.models.nemotron_voicechat.request_builders import (
     build_thinker_request,
     merge_for_talker,
 )
+from sglang_omni.models.nemotron_voicechat.thinker import NemotronVoiceChatForCausalLM
 from sglang_omni.proto import StagePayload
 from sglang_omni.proto.request import OmniRequest
 from sglang_omni.scheduling.types import SchedulerRequest
@@ -85,6 +86,45 @@ def test_thinker_runner_uses_current_request_prefill_span() -> None:
     rows = runner.build_prefill_rows([SchedulerRequest("r", data=data)])
 
     assert rows.shape == (3, 4)
+
+
+def test_thinker_decode_always_consumes_staged_fusion_rows() -> None:
+    """Every decode forward consumes the newly staged acoustic fusion rows."""
+    model = object.__new__(NemotronVoiceChatForCausalLM)
+    torch.nn.Module.__init__(model)
+    model.fusion_buffer = torch.zeros(2, 4)
+    model.has_staged_decode = True
+    forwarded_rows: list[torch.Tensor] = []
+    llm = Mock()
+
+    def record_forward(
+        input_ids: torch.Tensor,
+        positions: torch.Tensor,
+        forward_batch: Mock,
+        input_embeds_placeholder: None,
+        input_embeds: torch.Tensor,
+    ) -> torch.Tensor:
+        del input_ids, positions, forward_batch, input_embeds_placeholder
+        forwarded_rows.append(input_embeds.clone())
+        return torch.zeros(2, 4)
+
+    llm.model.forward.side_effect = record_forward
+    model.llm = llm
+    model.sample_function_ids = Mock()
+    input_ids = torch.tensor([1, 2])
+    positions = torch.tensor([0, 1])
+    forward_batch = Mock()
+
+    first_rows = torch.arange(8, dtype=torch.float32).reshape(2, 4)
+    second_rows = torch.arange(8, 16, dtype=torch.float32).reshape(2, 4)
+    model.fusion_buffer.copy_(first_rows)
+    model.forward(input_ids, positions, forward_batch)
+    model.fusion_buffer.copy_(second_rows)
+    model.forward(input_ids, positions, forward_batch)
+
+    torch.testing.assert_close(forwarded_rows[0], first_rows)
+    torch.testing.assert_close(forwarded_rows[1], second_rows)
+    llm.get_input_embeddings.assert_not_called()
 
 
 def test_thinker_is_greedy_and_warns_on_ignored_temperature(

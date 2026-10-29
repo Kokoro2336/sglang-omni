@@ -117,6 +117,7 @@ class UnitDecodeRunner(ModelRunner):
         batch.forward_mode = ForwardMode.EXTEND
         return forward_batch, schedule_batch, False
 
+
 class DuplexThinkerRunner(UnitDecodeRunner, NemotronVoiceChatModelRunner):
     def before_prefill(
         self,

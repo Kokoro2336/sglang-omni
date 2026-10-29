@@ -214,7 +214,6 @@ class NemotronVoiceChatModelRunner(ModelRunner[NemotronVoiceChatRequestData]):
         fusion_buffer.add_(token_embeddings[:, 0])
         token_embeddings[:, 1].mul_(model.fusion.function_weight)
         fusion_buffer.add_(token_embeddings[:, 1])
-        model.has_staged_decode = True
 
     def record_function_ids(self, requests: list[SchedulerRequest]) -> None:
         sampled_function_ids = self.model.function_ids[: len(requests)].tolist()
